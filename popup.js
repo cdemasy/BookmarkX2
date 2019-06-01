@@ -12,8 +12,8 @@ async function analyseBookmarks(){
 
   for (var key in analysisData){
     let data = analysisData[key];
-    data.sort((a,b) => (Object.values(a)[0] < Object.values(b)[0]) ? 1 
-                        : (Object.values(b)[0] < Object.values(a)[0]) ? -1 : 0);
+    //Sort decreasing size
+    data.sort((a, b) => (a.n < b.n) ? 1 : (b.n < a.n) ? -1 : 0);
   }
 
   storage.set(analysisData);
@@ -27,15 +27,14 @@ async function analyseRecursively(bm){
   else{
     let domain = getDomainName(bm.url);
     let parentFolderId = bm.parentId;
-    let data = analysisData[domain];
-    if (!data) data = [];
-    let newIndex = data.findIndex(el => el[parentFolderId] != undefined);
+    let data = analysisData[domain] || [];
+    let newIndex = data.findIndex(el => el.parentId == parentFolderId);
 
     if(newIndex == -1) {
-      data.push({[parentFolderId]:0});
+      data.push( {parentId: parentFolderId, n: 0} );
       newIndex = data.length-1;
     }
-    data[newIndex][ Object.keys(data[newIndex])[0] ] += 1;
+    data[newIndex].n++;
     analysisData[domain] = data;
   }
 }
@@ -56,7 +55,6 @@ function getDomainName(v) {
 
 document.addEventListener('DOMContentLoaded', function() {
     const button = document.getElementById('analyseButton');
-    // onClick's logic below:
     button.addEventListener('click', async function() {
         await analyseBookmarks();
         let result = document.createElement("p");

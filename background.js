@@ -27,11 +27,11 @@ cb.onCreated.addListener(async function (id, bookmark) {
   if (typeof folders != "undefined") {
     await hideBookmarksPopup();
 
-    let parentFolderId = firstKey(folders[0]);
+    let parentFolderId = folders[0].parentId;
     await associateDomain(domain, bookmark.parentId, undefined);
 
     if (bookmark.parentId != parentFolderId)
-      await cb.move(id, { parentId: parentFolderId });
+      await cb.move(id, {parentId: parentFolderId} );
   }
   else await associateDomain(domain, bookmark.parentId, undefined);
 
@@ -43,26 +43,25 @@ async function associateDomain(domain, parentFolderId, oldParentFolderId) {
 
   domain = getDomainName(domain);
   let folders = await getAssociatedFolders(domain);
-  if (typeof folders == "undefined") folders = [{ [parentFolderId]: 0 }];
+  if (typeof folders == "undefined") folders = [ {parentId: parentFolderId, n: 0} ];
 
   if (parentFolderId) {
-    let newIndex = folders.findIndex(el => el[parentFolderId] != undefined);
+    let newIndex = folders.findIndex(el => el.parentId == parentFolderId);
     if (newIndex == -1) {
-      folders.push({ [parentFolderId]: 0 });
+      folders.push( {parentId: parentFolderId, n: 0} );
       newIndex = folders.length - 1;
     }
-    addToFirstVal(folders[newIndex], 1);
+    folders[newIndex].n++
   }
 
-  let oldIndex = folders.findIndex(el => el[oldParentFolderId] != undefined);
+  let oldIndex = folders.findIndex(el => el.parentId == oldParentFolderId);
   if (oldParentFolderId && oldIndex != -1) {
-    if (addToFirstVal(folders[oldIndex], -1) == 0)
+    if (--folders[oldIndex].n == 0)
       folders.splice(oldIndex, 1);
   }
   
   //Sort decreasing size
-  folders.sort((a, b) => (firstVal(a) < firstVal(b)) ? 1
-    : (firstVal(b) < firstVal(a)) ? -1 : 0);
+  folders.sort((a, b) => (a.n < b.n) ? 1 : (b.n < a.n) ? -1 : 0);
 
   if(folders.length == 0) await storage.remove(domain);
   else await storage.set({ [domain]: folders });
@@ -86,8 +85,22 @@ async function showCreatedBookmarkNotification(id) {
   let folders = await getAssociatedFolders(bookmark.url);
   let changeButtons = [];
   for (let i = 1; i < 3 && i < folders.length; i++) {
-    let folder = await getBookmark(firstKey(folders[i]));
+    let folder = await getBookmark(folders[i].parentId);
     changeButtons.push({ title: `Move to '${folder.title}'`});
+  }
+
+  let notiCallback = function(changeNotificationId) {
+    const twoFolders = folders.slice(1, 3);
+    const bookmarkId = id;
+    let buttonListener = (notificationId, buttonIndex) => {
+      if (notificationId != changeNotificationId) return;
+
+      let folderId = twoFolders[buttonIndex].parentId;
+      cb.move(bookmarkId, { parentId: folderId });
+
+      noti.onButtonClicked.removeListener(buttonListener);
+    }
+    noti.onButtonClicked.addListener(buttonListener);
   }
 
   noti.create(
@@ -97,34 +110,12 @@ async function showCreatedBookmarkNotification(id) {
       message: `Bookmarked to '${parentFolder.title}'`,
       buttons: changeButtons,
       silent: true
-    },
-    changeNotificationId => {
-      let twoFolders = folders.slice(1, 3);
-      noti.onButtonClicked.addListener((notificationId, buttonIndex) => {
-        let folderId = firstKey(twoFolders[buttonIndex]);
-        if (notificationId == changeNotificationId)
-          cb.move(id, { parentId: folderId });
-      });
-    }
-  );
+    }, notiCallback);
 
 }
 
 async function getBookmark(id){
   return (await cb.get(id))[0];
-}
-
-function firstKey(object){
-  return Object.keys(object)[0];
-}
-function firstVal(object){
-  return Object.values(object)[0];
-}
-function setFirstVal(object, val){
-  return object[firstKey(object)] = val;
-}
-function addToFirstVal(object, val){
-  return setFirstVal(object, firstVal(object)+val);
 }
 
 function getDomainName(v) {
