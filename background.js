@@ -5,18 +5,22 @@ noti = chrome.notifications;
 //After bookmark moved
 cb.onMoved.addListener(async function (id, moveInfo) {
   let bookmark = await getBookmark(id);
-  associateDomain(bookmark.url, moveInfo.parentId, moveInfo.oldParentId);
+  if(bookmark.url)
+    await associateDomain(bookmark.url, moveInfo.parentId, moveInfo.oldParentId);
 });
 
 //After bookmark removed
 cb.onRemoved.addListener(async function (parentId, removeInfo) {
-  console.log("removed "+removeInfo.node.url+" "+removeInfo.parentId);
-  console.log(removeInfo);
-  associateDomain(removeInfo.node.url, undefined, removeInfo.parentId);
+  if(removeInfo.node.children) removeInfo.node.children
+    .forEach(async c => { await associateDomain(c.url, undefined, removeInfo.id); } );
+  else 
+    associateDomain(removeInfo.node.url, undefined, removeInfo.parentId);
 });
 
 //After bookmark created
 cb.onCreated.addListener(async function (id, bookmark) {
+  if(!bookmark.url) return;
+
   let domain = getDomainName(bookmark.url);
   let folders = await getAssociatedFolders(domain);
 
