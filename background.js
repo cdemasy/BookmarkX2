@@ -101,6 +101,8 @@ async function showCreatedBookmarkNotification(id) {
       noti.onButtonClicked.removeListener(buttonListener);
     }
     noti.onButtonClicked.addListener(buttonListener);
+
+    setTimeout(() => noti.clear(changeNotificationId), 10000);
   }
 
   noti.create(
