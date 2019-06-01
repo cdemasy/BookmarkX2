@@ -2,11 +2,23 @@ cb = chrome.bookmarks;
 storage = chrome.storage.sync;
 noti = chrome.notifications;
 
+var isMoving = false;
+const moveQueue = [];
+
 //After bookmark moved
 cb.onMoved.addListener(async function (id, moveInfo) {
   let bookmark = await getBookmark(id);
-  if(bookmark.url)
-    await associateDomain(bookmark.url, moveInfo.parentId, moveInfo.oldParentId);
+  if(!bookmark.url) return;
+  moveQueue.push( {url: bookmark.url, parentId: moveInfo.parentId, oldParentId: moveInfo.oldParentId} );
+
+  if(!isMoving){
+    isMoving = true;
+    while(moveQueue.length > 0){
+      let o = moveQueue.pop();
+      await associateDomain(o.url, o.parentId, o.oldParentId);
+    }
+    isMoving = false;
+  }
 });
 
 //After bookmark removed
@@ -107,7 +119,7 @@ async function showCreatedBookmarkNotification(id) {
 
   noti.create(
     {
-      type: "basic", iconUrl: "icon.png",
+      type: "basic", iconUrl: "images/bmx128.png",
       title: "BookmarkX2",
       message: `Bookmarked to '${parentFolder.title}'`,
       buttons: changeButtons,
