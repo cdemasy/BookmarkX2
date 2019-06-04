@@ -128,6 +128,72 @@ async function showCreatedBookmarkNotification(id) {
 
 }
 
+
+/*
+ *
+ * Analyse/reset data
+ * 
+*/
+
+chrome.runtime.onInstalled.addListener(function(details){
+  if(details.reason == "install"){
+    analyseBookmarks();
+  }else if(details.reason == "update"){
+    analyseBookmarks();
+  }
+});
+
+chrome.runtime.onMessage.addListener( 
+  function(request, sender, sendResponse) {
+    if (request.type == "analyseBookmarks"){
+      analyseBookmarks();
+      sendResponse({result: true});
+    }
+  });
+
+async function analyseBookmarks(){
+  analysisData = {};
+  storage.clear();
+  let bms = await cb.getTree();
+  bms.forEach(async function(bm) {
+    await analyseRecursively(bm);
+  });
+
+  for (var key in analysisData){
+    let data = analysisData[key];
+    //Sort decreasing size
+    data.sort((a, b) => (a.n < b.n) ? 1 : (b.n < a.n) ? -1 : 0);
+  }
+
+  storage.set(analysisData);
+}
+async function analyseRecursively(bm){
+  if(bm.children){
+    bm.children.forEach(async function(c) {
+      await analyseRecursively(c);
+    });
+  }
+  else{
+    let domain = getDomainName(bm.url);
+    let parentFolderId = bm.parentId;
+    let data = analysisData[domain] || [];
+    let newIndex = data.findIndex(el => el.parentId == parentFolderId);
+
+    if(newIndex == -1) {
+      data.push( {parentId: parentFolderId, n: 0} );
+      newIndex = data.length-1;
+    }
+    data[newIndex].n++;
+    analysisData[domain] = data;
+  }
+}
+
+/*
+ *
+ * Util functions
+ * 
+*/
+
 async function getBookmark(id){
   return (await cb.get(id))[0];
 }
