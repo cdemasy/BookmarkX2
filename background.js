@@ -1,5 +1,5 @@
 cb = chrome.bookmarks;
-storage = chrome.storage.sync;
+storage = chrome.storage.local;
 noti = chrome.notifications;
 
 var isMoving = false;
@@ -31,7 +31,8 @@ cb.onRemoved.addListener(async function (parentId, removeInfo) {
 
 //After bookmark created
 cb.onCreated.addListener(async function (id, bookmark) {
-  if(!bookmark.url) return;
+  //Don't do anything if synced bookmark or folder
+  if(!bookmark.url || Date.now() - bookmark.dateAdded > 1000) return;
 
   let domain = getDomainName(bookmark.url);
   let folders = await getAssociatedFolders(domain);
@@ -47,6 +48,7 @@ cb.onCreated.addListener(async function (id, bookmark) {
   }
   else await associateDomain(domain, bookmark.parentId, undefined);
 
+  bmark = bookmark;
   showCreatedBookmarkNotification(id);
 });
 
