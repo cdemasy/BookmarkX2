@@ -116,6 +116,7 @@ async function showCreatedBookmarkNotification(id) {
     }
     noti.onButtonClicked.addListener(buttonListener);
 
+    //must be removed before it is hidden, requireInteraction to hide after 6500 ms
     setTimeout(() => noti.clear(changeNotificationId), 10000);
   }
 
@@ -125,7 +126,8 @@ async function showCreatedBookmarkNotification(id) {
       title: "BookmarkX2",
       message: `Bookmarked to '${parentFolder.title}'`,
       buttons: changeButtons,
-      silent: true
+      silent: true,
+      requireInteraction: true,
     }, notiCallback);
 
 }
